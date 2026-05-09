@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stok Bahan Ajar - Vue</title>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+    <style>
+    * { box-sizing: border-box; font-family: Segoe UI, Arial, sans-serif }
+    body {
+        margin: 0;
+        background: linear-gradient(180deg, #edf3ff, #e7effa);
+        color: #1d2b45;
+        padding: 20px;
+    }
+    .app {
+        max-width: 1240px;
+        margin: auto;
+        background: #fff;
+        border-radius: 16px;
+        box-shadow: 0 16px 38px rgba(21, 39, 84, .14);
+        border: 1px solid #dfe7f7;
+        overflow: hidden;
+    }
+    .header { padding: 22px; background: linear-gradient(135deg, #001a5c, #1f52b7); color: #fff }
+    .header h1 { margin: 0 0 4px; font-size: 24px }
+    .header p { margin: 0; opacity: .9 }
+    .content { padding: 18px }
+    .grid { display: grid; grid-template-columns: repeat(4, minmax(160px, 1fr)); gap: 12px; margin-bottom: 12px }
+    input, select {
+        width: 100%;
+        padding: 10px 11px;
+        border: 1px solid #d5def2;
+        border-radius: 10px;
+        background: #fff;
+        color: #1e2a44;
+        transition: border-color .2s ease, box-shadow .2s ease;
+    }
+    input:focus, select:focus {
+        outline: none;
+        border-color: #3b6ac9;
+        box-shadow: 0 0 0 3px rgba(59, 106, 201, .15);
+    }
+    .btn {
+        border: none;
+        border-radius: 10px;
+        padding: 10px 13px;
+        font-weight: 700;
+        cursor: pointer;
+        transition: transform .15s ease, box-shadow .2s ease, background .2s ease;
+    }
+    .btn:hover { transform: translateY(-1px) }
+    .btn-primary { background: #1745a7; color: #fff; box-shadow: 0 8px 20px rgba(23, 69, 167, .25) }
+    .btn-secondary { background: #e9f0fe; color: #1a3a78 }
+    .btn-danger { background: #fee2e2; color: #9f1239 }
+    .btn-warning { background: #fff7ed; color: #b45309 }
+    .actions {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        margin-bottom: 12px;
+        align-items: center;
+    }
+    .actions label {
+        background: #f4f7fe;
+        border: 1px solid #dce5f8;
+        border-radius: 10px;
+        padding: 8px 11px;
+        font-size: 13px;
+        color: #3a4d73;
+    }
+    table { width: 100%; border-collapse: collapse; min-width: 1000px }
+    th, td {
+        border-bottom: 1px solid #edf1fa;
+        padding: 10px;
+        font-size: 13px;
+        text-align: left;
+        vertical-align: top;
+    }
+    thead th {
+        position: sticky;
+        top: 0;
+        background: #f3f7ff;
+        color: #344a74;
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: .02em;
+    }
+    tbody tr:hover { background: #f9fbff }
+    .table-wrap { overflow: auto; border: 1px solid #dde7fa; border-radius: 12px; background: #fff }
+    .badge { display: inline-block; padding: 4px 10px; border-radius: 999px; font-size: 12px; font-weight: 700 }
+    .aman { background: #dcfce7; color: #15803d }
+    .menipis { background: #ffedd5; color: #c2410c }
+    .kosong { background: #fee2e2; color: #b91c1c }
+    .edit-row { background: #f8faff }
+    .small { font-size: 12px; color: #64748b; font-weight: 600; margin-bottom: 5px; display: block }
+    .form-add {
+        margin-top: 14px;
+        padding: 14px;
+        border: 1px solid #d8e4fb;
+        border-radius: 12px;
+        background: #f7faff;
+    }
+    .form-add h3 { margin: 0 0 12px; color: #1f3566 }
+    .empty { text-align: center; padding: 15px; color: #6c7898 }
+    @media (max-width: 900px) { .grid { grid-template-columns: repeat(2, minmax(140px, 1fr)) } }
+    @media (max-width: 600px) { body { padding: 10px } .content { padding: 12px } .grid { grid-template-columns: 1fr } }
+    </style>
+</head>
+
+<body>
+    <div id="stok-app" class="app">
+        <div class="header">
+            <h1>Halaman Stok Bahan Ajar</h1>
+        </div>
+        <div class="content">
+            <div class="grid">
+                <div><label class="small">Cari</label><input v-model="filters.keyword" placeholder="kode/judul"></div>
+                <div><label class="small">UT-Daerah</label><select v-model="filters.upbjj"><option value="">Semua</option><option v-for="u in upbjjOptions" :key="u" :value="u">{{ u }}</option></select></div>
+                <div v-if="filters.upbjj"><label class="small">Kategori (dependent)</label><select v-model="filters.kategori"><option value="">Semua</option><option v-for="k in kategoriOptions" :key="k" :value="k">{{ k }}</option></select></div>
+                <div><label class="small">Sort</label><select v-model="filters.sortBy"><option value="judul">Judul</option><option value="qty">Stok</option><option value="harga">Harga</option></select></div>
+            </div>
+            <div class="actions">
+                <label><input type="checkbox" v-model="filters.onlyLow"> Tampilkan qty &lt; safety</label>
+                <label><input type="checkbox" v-model="filters.onlyZero"> Tampilkan qty = 0</label>
+                <button class="btn btn-secondary" @click="resetFilters">Reset Filter</button>
+            </div>
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Kode/Judul</th>
+                            <th>Kategori</th>
+                            <th>UT-Daerah</th>
+                            <th>Lokasi Rak</th>
+                            <th>Qty</th>
+                            <th>Safety</th>
+                            <th>Harga</th>
+                            <th>Status</th>
+                            <th>Catatan</th>
+                            <th>Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr v-if="filteredAndSortedStock.length === 0"><td colspan="10" class="empty">Data tidak ditemukan.</td></tr>
+                        <template v-for="item in filteredAndSortedStock" :key="item.id">
+                            <tr>
+                                <td><strong>{{ item.kode }}</strong><br>{{ item.judul }}</td>
+                                <td>{{ item.kategori }}</td>
+                                <td>{{ item.upbjj }}</td>
+                                <td>{{ item.lokasiRak }}</td>
+                                <td>{{ item.qty }}</td>
+                                <td>{{ item.safety }}</td>
+                                <td>{{ toRupiah(item.harga) }}</td>
+                                <td><span class="badge" :class="statusInfo(item).className">{{ statusInfo(item).icon }} {{ statusInfo(item).label }}</span></td>
+                                <td><span v-html="item.catatanHTML"></span></td>
+                                <td><button class="btn btn-warning" @click="startEdit(item)">Edit</button></td>
+                            </tr>
+                            <tr v-if="editingId === item.id" class="edit-row">
+                                <td colspan="10">
+                                    <div class="grid">
+                                        <div><label class="small">Qty</label><input type="number" min="0" v-model.number="editForm.qty"></div>
+                                        <div><label class="small">Safety</label><input type="number" min="0" v-model.number="editForm.safety"></div>
+                                        <div><label class="small">Harga</label><input type="number" min="0" v-model.number="editForm.harga"></div>
+                                        <div><label class="small">Catatan HTML</label><input v-model="editForm.catatanHTML"></div>
+                                    </div>
+                                    <div class="actions">
+                                        <button class="btn btn-primary" @click="saveEdit(item.id)">Simpan</button>
+                                        <button class="btn btn-danger" @click="cancelEdit">Batal</button>
+                                    </div>
+                                </td>
+                            </tr>
+                        </template>
+                    </tbody>
+                </table>
+            </div>
+            <div class="form-add">
+                <h3>Tambah Bahan Ajar Baru</h3>
+                <div class="grid">
+                    <div><label class="small">Kode</label><input v-model="newItem.kode"></div>
+                    <div><label class="small">Judul</label><input v-model="newItem.judul"></div>
+                    <div><label class="small">Kategori</label><input v-model="newItem.kategori"></div>
+                    <div><label class="small">UT-Daerah</label><select v-model="newItem.upbjj"><option value="">Pilih</option><option v-for="u in upbjjOptions" :key="u" :value="u">{{ u }}</option></select></div>
+                    <div><label class="small">Lokasi Rak</label><input v-model="newItem.lokasiRak"></div>
+                    <div><label class="small">Qty</label><input type="number" min="0" v-model.number="newItem.qty"></div>
+                    <div><label class="small">Safety</label><input type="number" min="0" v-model.number="newItem.safety"></div>
+                    <div><label class="small">Harga</label><input type="number" min="0" v-model.number="newItem.harga"></div>
+                </div>
+                <div style="margin-top:8px"><label class="small">Catatan HTML</label><input v-model="newItem.catatanHTML" placeholder="contoh: <em>Perlu dipantau</em>"></div>
+                <div class="actions" style="margin-top:10px">
+                    <button class="btn btn-primary" @click="addItem">Tambah Data</button>
+                    <button class="btn btn-secondary" @click="resetNewForm">Reset Form</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/data.js"></script>
+    <script>
+        const { createApp } = Vue;
+        createApp({
+            data() {
+                return {
+                    stockList: [],
+                    filters: {
+                        keyword: "",
+                        upbjj: "",
+                        kategori: "",
+                        onlyLow: false,
+                        onlyZero: false,
+                        sortBy: "judul"
+                    },
+                    editingId: null,
+                    editForm: { qty: 0, safety: 0, harga: 0, catatanHTML: "" },
+                    newItem: { kode: "", judul: "", kategori: "", upbjj: "", lokasiRak: "", qty: 0, safety: 0, harga: 0, catatanHTML: "" }
+                };
+            },
+            mounted() {
+                const saved = localStorage.getItem("stokBahanAjarVue");
+                if (saved) {
+                    try {
+                        this.stockList = JSON.parse(saved);
+                    } catch (error) {
+                        this.stockList = JSON.parse(JSON.stringify(window.dataStokBahanAjar || []));
+                    }
+                } else {
+                    this.stockList = JSON.parse(JSON.stringify(window.dataStokBahanAjar || []));
+                }
+            },
+            computed: {
+                upbjjOptions() {
+                    return [...new Set((window.upbjjList || []).map(item => item.nama))];
+                },
+                kategoriOptions() {
+                    if (!this.filters.upbjj) return [];
+                    const selected = (window.upbjjList || []).find(item => item.nama === this.filters.upbjj);
+                    return selected ? selected.kategoriList : [];
+                },
+                filteredAndSortedStock() {
+                    let result = [...this.stockList];
+                    const keyword = this.filters.keyword.trim().toLowerCase();
+                    if (keyword) {
+                        result = result.filter(item => item.kode.toLowerCase().includes(keyword) || item.judul.toLowerCase().includes(keyword));
+                    }
+                    if (this.filters.upbjj) result = result.filter(item => item.upbjj === this.filters.upbjj);
+                    if (this.filters.kategori) result = result.filter(item => item.kategori === this.filters.kategori);
+                    if (this.filters.onlyLow) result = result.filter(item => Number(item.qty) < Number(item.safety));
+                    if (this.filters.onlyZero) result = result.filter(item => Number(item.qty) === 0);
+                    result.sort((a, b) => {
+                        if (this.filters.sortBy === "judul") return a.judul.localeCompare(b.judul);
+                        return Number(a[this.filters.sortBy]) - Number(b[this.filters.sortBy]);
+                    });
+                    return result;
+                }
+            },
+            watch: {
+                "filters.upbjj"() { this.filters.kategori = ""; },
+                stockList: {
+                    deep: true,
+                    handler(newValue) {
+                        localStorage.setItem("stokBahanAjarVue", JSON.stringify(newValue));
+                    }
+                }
+            },
+            methods: {
+                toRupiah(value) {
+                    return new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(Number(value) || 0);
+                },
+                statusInfo(item) {
+                    if (Number(item.qty) === 0) return { label: "Kosong", className: "kosong", icon: "⛔" };
+                    if (Number(item.qty) < Number(item.safety)) return { label: "Menipis", className: "menipis", icon: "⚠️" };
+                    return { label: "Aman", className: "aman", icon: "✅" };
+                },
+                resetFilters() {
+                    this.filters = { keyword: "", upbjj: "", kategori: "", onlyLow: false, onlyZero: false, sortBy: "judul" };
+                },
+                startEdit(item) {
+                    this.editingId = item.id;
+                    this.editForm = { qty: Number(item.qty), safety: Number(item.safety), harga: Number(item.harga), catatanHTML: item.catatanHTML || "" };
+                },
+                cancelEdit() { this.editingId = null; },
+                saveEdit(id) {
+                    if (this.editForm.qty < 0 || this.editForm.safety < 0 || this.editForm.harga < 0) return alert("Nilai qty/safety/harga tidak boleh negatif.");
+                    const idx = this.stockList.findIndex(item => item.id === id);
+                    if (idx === -1) return;
+                    this.stockList[idx] = { ...this.stockList[idx], ...this.editForm };
+                    this.editingId = null;
+                },
+                addItem() {
+                    const required = ["kode", "judul", "kategori", "upbjj", "lokasiRak", "catatanHTML"];
+                    const isMissing = required.some(key => !String(this.newItem[key] || "").trim());
+                    if (isMissing) return alert("Semua field wajib diisi.");
+                    if (this.newItem.qty < 0 || this.newItem.safety < 0 || this.newItem.harga < 0) return alert("Qty, safety, dan harga tidak boleh negatif.");
+                    const exists = this.stockList.some(item => item.kode.toLowerCase() === this.newItem.kode.trim().toLowerCase());
+                    if (exists) return alert("Kode mata kuliah sudah ada.");
+                    this.stockList.push({
+                        id: Date.now(),
+                        kode: this.newItem.kode.trim().toUpperCase(),
+                        judul: this.newItem.judul.trim(),
+                        kategori: this.newItem.kategori.trim(),
+                        upbjj: this.newItem.upbjj,
+                        lokasiRak: this.newItem.lokasiRak.trim(),
+                        qty: Number(this.newItem.qty),
+                        safety: Number(this.newItem.safety),
+                        harga: Number(this.newItem.harga),
+                        catatanHTML: this.newItem.catatanHTML.trim()
+                    });
+                    this.resetNewForm();
+                },
+                resetNewForm() {
+                    this.newItem = { kode: "", judul: "", kategori: "", upbjj: "", lokasiRak: "", qty: 0, safety: 0, harga: 0, catatanHTML: "" };
+                }
+            }
+        }).mount("#stok-app");
+    </script>
+</body>
+
+</html>
